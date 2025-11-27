@@ -514,51 +514,8 @@ du -sh /mnt/media-1tb/downloads
 # Find large files
 find /mnt/media-1tb/downloads -type f -size +10G
 
-# Clean old downloads (these should be auto-deleted by Sonarr/Radarr)
-sudo rm -rf /mnt/media-1tb/downloads/tv-sonarr/*
-sudo rm -rf /mnt/media-1tb/downloads/radarr/*
-```
-
-### ⚠️ IMPORTANT: Configure Sonarr/Radarr to Move Files (Not Copy)
-
-By default, Sonarr and Radarr may COPY files instead of MOVE them, leaving duplicates in the downloads folder. This wastes massive amounts of space!
-
-**Fix this in Sonarr:**
-1. Go to https://sonarr.binoy.co
-2. Settings → Media Management
-3. **Enable**: "Use Hardlinks instead of Copy" ✓
-4. **Enable**: "Delete empty folders" ✓
-5. Under "Completed Download Handling":
-   - **Enable**: "Remove Completed Downloads" ✓
-   - This tells Sonarr to remove from download client after importing
-6. Save changes
-7. Restart Sonarr: `docker-compose restart sonarr`
-
-**Fix this in Radarr:**
-1. Go to https://radarr.binoy.co
-2. Settings → Media Management
-3. **Enable**: "Use Hardlinks instead of Copy" ✓
-4. **Enable**: "Delete empty folders" ✓
-5. Under "Completed Download Handling":
-   - **Enable**: "Remove Completed Downloads" ✓
-6. Save changes
-7. Restart Radarr: `docker-compose restart radarr`
-
-**Why Hardlinks?**
-- Hardlinks create a reference to the same file data without copying
-- File exists in both downloads/ and shows/movies/ but only uses space once
-- When download is removed, the file stays in your library
-- Saves tons of space!
-
-**Verify it's working:**
-```bash
-# Downloads folder should stay small after this
-watch -n 60 du -sh /mnt/media-1tb/downloads
-
-# Check that files are hardlinked (same inode number)
-ls -li /mnt/media-1tb/downloads/tv-sonarr/ShowName/
-ls -li /mnt/media-1tb/shows/ShowName/
-# If inode numbers match, it's a hardlink (good!)
+# Clean completed downloads (manual review recommended)
+# Sonarr and Radarr should auto-delete after importing
 ```
 
 ## Advanced Configuration
@@ -653,11 +610,3 @@ cd /home/daniel/jelly-stack && docker-compose pull && docker-compose up -d
 - Sonarr/Radarr move completed files to `/mnt/media-1tb/`
 - Jellyfin scans `/mnt/media-1tb/` for new media
 - Jellyseerr sends requests to Sonarr/Radarr
-
-### Critical Configuration Issues
-**Downloads Folder Bloat (COMMON ISSUE):**
-- Problem: Downloads folder can grow to 1TB+ if misconfigured
-- Root Cause: Sonarr/Radarr set to COPY instead of HARDLINK/MOVE
-- Solution: Enable "Use Hardlinks" and "Remove Completed Downloads" in Settings → Media Management
-- Verification: Downloads folder should stay under 100GB normally
-- Cleanup: `sudo rm -rf /mnt/media-1tb/downloads/{tv-sonarr,radarr}/*`
