@@ -1,0 +1,12 @@
+# secrets & environment
+.env
+
+# runtime data and configs
+configs/
+homarr/appdata/
+
+# databases/logs that might be generated
+*.db
+*.db-*
+*.log
+*.pid

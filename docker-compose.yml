@@ -1,0 +1,121 @@
+version: "3.8"
+
+services:
+  jellyfin:
+    image: jellyfin/jellyfin
+    container_name: jellyfin
+    runtime: nvidia
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - capabilities: [gpu]
+    ports:
+      - "8096:8096"
+    volumes:
+      - ./configs/jellyfin:/config
+      - ${MEDIA_PATH:-/mnt/media-1tb}:/media
+    restart: unless-stopped
+
+  jellyseerr:
+    image: fallenbagel/jellyseerr:latest
+    container_name: jellyseerr
+    ports:
+      - "5055:5055"
+    environment:
+      - LOG_LEVEL=debug
+      - TZ=${TZ:-UTC}
+    volumes:
+      - ./configs/jellyseerr:/app/config
+    restart: unless-stopped
+
+  prowlarr:
+    image: lscr.io/linuxserver/prowlarr:latest
+    container_name: prowlarr
+    ports:
+      - "9696:9696"
+    environment:
+      - PUID=${PUID:-1000}
+      - PGID=${PGID:-1000}
+      - TZ=${TZ:-UTC}
+    volumes:
+      - ./configs/prowlarr:/config
+    restart: unless-stopped
+
+  sonarr:
+    image: lscr.io/linuxserver/sonarr
+    container_name: sonarr
+    ports:
+      - "8989:8989"
+    environment:
+      - PUID=${PUID:-1000}
+      - PGID=${PGID:-1000}
+      - TZ=${TZ:-UTC}
+    volumes:
+      - ./configs/sonarr:/config
+      - ${MEDIA_PATH:-/mnt/media-1tb}:/media
+      - ${DOWNLOADS_PATH:-/mnt/media-1tb/downloads}:/data
+    restart: unless-stopped
+
+  radarr:
+    image: lscr.io/linuxserver/radarr
+    container_name: radarr
+    ports:
+      - "7878:7878"
+    environment:
+      - PUID=${PUID:-1000}
+      - PGID=${PGID:-1000}
+      - TZ=${TZ:-UTC}
+    volumes:
+      - ./configs/radarr:/config
+      - ${MEDIA_PATH:-/mnt/media-1tb}:/media
+      - ${DOWNLOADS_PATH:-/mnt/media-1tb/downloads}:/data
+    restart: unless-stopped
+
+  vpn-transmission:
+    image: haugene/transmission-openvpn
+    container_name: vpn-transmission
+    cap_add:
+      - NET_ADMIN
+    devices:
+      - /dev/net/tun
+    ports:
+      - "9091:9091"
+    environment:
+      - OPENVPN_PROVIDER=${OPENVPN_PROVIDER:-CUSTOM}
+      - OPENVPN_CONFIG=${OPENVPN_CONFIG:-cyberghost}
+      - OPENVPN_USERNAME=${OPENVPN_USERNAME}
+      - OPENVPN_PASSWORD=${OPENVPN_PASSWORD}
+      - LOCAL_NETWORK=${LOCAL_NETWORK:-192.168.86.0/24}
+      - TRANSMISSION_WEB_UI=${TRANSMISSION_WEB_UI:-combustion}
+      - TRANSMISSION_DOWNLOAD_DIR=/data
+      - TRANSMISSION_INCOMPLETE_DIR=/data/incomplete
+      - TRANSMISSION_RPC_AUTHENTICATION_REQUIRED=${TRANSMISSION_RPC_AUTHENTICATION_REQUIRED:-true}
+      - TRANSMISSION_RPC_USERNAME=${TRANSMISSION_RPC_USERNAME}
+      - TRANSMISSION_RPC_PASSWORD=${TRANSMISSION_RPC_PASSWORD}
+    volumes:
+      - ./configs/vpn-transmission:/etc/openvpn/custom/
+      - ${DOWNLOADS_PATH:-/mnt/media-1tb/downloads}:/data
+    restart: unless-stopped
+
+  nginx-proxy-manager:
+    image: jc21/nginx-proxy-manager:latest
+    container_name: nginx-proxy-manager
+    ports:
+      - "8081:80"
+      - "4443:443"
+      - "8181:81"
+    volumes:
+      - ./configs/npm/data:/data
+      - ./configs/npm/letsencrypt:/etc/letsencrypt
+    restart: unless-stopped
+
+  uptime-kuma:
+    image: louislam/uptime-kuma:latest
+    container_name: uptime-kuma
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./configs/uptime-kuma:/app/data
+      - /var/run/docker.sock:/var/run/docker.sock  # needed for Docker monitor
